@@ -41,6 +41,7 @@ def pricer(strike, s0, r, vol, div, duration = 1, exercise_dates = 252, num_path
         high_std = np.std(highs, ddof = 1)
     low = np.mean(lows)
     high = np.mean(highs)
+    rules = np.mean(rules, axis=0)
 
     z = ss.norm.ppf(1 - alpha / 2.)
     interval = (low - z*low_std, high + z*high_std)
@@ -64,3 +65,4 @@ for i in range(6):
     print(f"Point estimate: {results[i][1]}.")
     print(f"True price: {true_prices[i]}")
     print(f"Relative error: {np.abs(true_prices[i] - results[i][1]) / results[i][1] * 100}%.")
+    print(f"Rules: {results[i][2]}.")
