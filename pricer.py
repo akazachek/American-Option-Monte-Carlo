@@ -2,7 +2,7 @@ import estimators
 import numpy as np
 import scipy.stats as ss
 
-def pricer(strike, s0, r, vol, div, duration = 1, exercise_dates = 252, num_paths = 50000, num_optim = 100, estimates = 10, alpha = 0.05):
+def pricer(strike, s0, r, vol, div, duration = 1, exercise_dates = 252, num_paths = 50000, num_simplex = 100, estimates = 10, alpha = 0.05):
     """
      Gets confidence interval for option value and exercise rules.
             Parametres:
@@ -15,7 +15,7 @@ def pricer(strike, s0, r, vol, div, duration = 1, exercise_dates = 252, num_path
                 exercise_dates: how many days the option can be exercised, spaced linearly
                                 until its expiration (default = 252 i.e. each trading day)
                 num_paths: number of Monte-Carlo price simulations to do (default = 50000)
-                num_optim: number of linearly-interpolated minima to average
+                num_simplex: number of simplexes to try during optimization
                 estimates: number of estimators to generate
                 alpha: confidence interval percentile 
             Returns:
@@ -29,7 +29,7 @@ def pricer(strike, s0, r, vol, div, duration = 1, exercise_dates = 252, num_path
 
     # perform repeated simulations for the high and low estimators
     for i in range(estimates):
-        highs[i], rules[i,] = estimators.high_estimator(strike, s0, r, vol, div, duration, exercise_dates, num_paths, num_optim)
+        highs[i], rules[i,] = estimators.high_estimator(strike, s0, r, vol, div, duration, exercise_dates, num_paths, num_simplex)
         lows[i] = estimators.low_estimator(rules[i,], strike, s0, r, vol, div, duration, num_paths)
 
     # get sample standard deviations
@@ -55,7 +55,7 @@ def pricer(strike, s0, r, vol, div, duration = 1, exercise_dates = 252, num_path
 initial_prices = [70 + 10*i for i in range(6)]
 true_prices = [0.121, 0.670, 2.303, 5.731, 11.341, 20]
 results = []
-for s0 in initial_prices: results.append(pricer(100, s0, 0.05, 0.2, 0.1, exercise_dates = 4, num_paths=10000))
+for s0 in initial_prices: results.append(pricer(100, s0, 0.05, 0.2, 0.1, exercise_dates = 4, num_paths=10000, num_simplex=10, estimates = 40))
 
 for i in range(6):
     print("-------")

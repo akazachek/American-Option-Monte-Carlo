@@ -51,7 +51,7 @@ def rule_value(exercise_rules, paths, strike, r):
     # note we return the negative for use in optimization
     return -value  
 
-def high_estimator(strike, s0, r, vol, div = 0, duration = 1, exercise_dates = 252, num_paths = 50000, num_optim = 100):
+def high_estimator(strike, s0, r, vol, div = 0, duration = 1, exercise_dates = 252, num_paths = 50000, num_simplex = 100):
     """
         Optimizes the high-bias estimate for the option value as well as 
         the exercise rule.
@@ -66,7 +66,7 @@ def high_estimator(strike, s0, r, vol, div = 0, duration = 1, exercise_dates = 2
                 exercise_dates: how many days the option can be exercised, spaced linearly
                                 until its expiration (default = 252 i.e. each trading day)
                 num_paths: number of Monte-Carlo price simulations to do (default = 50000)
-                num_optim: number of linearly-interpolated minima to average
+                num_simplex: number of simplex to try during optimization
             Returns:
                 high_estimator: high-biased estimate for option value
                 rules: daily prices at which option should be exercised except for
@@ -81,11 +81,11 @@ def high_estimator(strike, s0, r, vol, div = 0, duration = 1, exercise_dates = 2
 
     # discounted payoff is not differentiable so we use Nelder-Mead.
     # however, since Nelder-Mead can get stuck in local minima, we
-    # optimize the same rule starting at many different polytopes, interpolating
-    # a daily exercise rule from the strike price to 120% of the strike price
+    # optimize the same rule starting at many different simplex, interpolating
+    # a daily exercise rule from the strike price to 125% of the strike price 
     optims = []
-    guesses = np.linspace(1., 1.2, num_optim)
-    for i in range(num_optim):
+    guesses = np.linspace(1., 1.25, num_simplex)
+    for i in range(num_simplex):
         optims.append(so.minimize(rule_value, np.full(exercise_dates - 1, strike * guesses[i]), args = (paths, strike, r),
                                                 method = "nelder-mead", bounds = bounds, options = {
                                                     "xatol": 1e-7,
@@ -94,17 +94,21 @@ def high_estimator(strike, s0, r, vol, div = 0, duration = 1, exercise_dates = 2
 
     # these rules and valuations are then averaged out, trimming
     # the worst and best 15%
-    rules = np.zeros((num_optim, exercise_dates - 1))
-    high_estimators = np.zeros(num_optim)
-    for i in range(num_optim):
+    rules = np.zeros((num_simplex, exercise_dates - 1))
+    high_estimators = np.zeros(num_simplex)
+    for i in range(num_simplex):
         rules[i] = optims[i]["x"]
         high_estimators[i] = optims[i]["fun"]
-    rules = ss.trim_mean(rules, .15)
-    high_estimator_mean = ss.trim_mean(high_estimators, .15)
+
+    where = np.argmin(high_estimators)
+    high_estimator = high_estimators[where]
+    rule = rules[where]
+    #rules = ss.trim_mean(rules, .15)
+    #high_estimator_mean = ss.trim_mean(high_estimators, .15)
     
     # need to return the minimum as we use negative discounted payoff 
     # during optimization
-    return (-high_estimator_mean, rules)
+    return (-high_estimator, rule)
 
 def low_estimator(exercise_rules, strike, s0, r, vol, div = 0, duration = 1, num_paths = 50000):
     """
@@ -127,5 +131,5 @@ def low_estimator(exercise_rules, strike, s0, r, vol, div = 0, duration = 1, num
     # generate simulated asset paths
     exercise_dates = exercise_rules.shape[0] + 1
     paths = monte_carlo(s0, r, vol, div, duration, exercise_dates, num_paths)
-    low_estimator_mean = rule_value(exercise_rules, paths, strike, r)
-    return -low_estimator_mean
+    low_estimator= rule_value(exercise_rules, paths, strike, r)
+    return -low_estimator
